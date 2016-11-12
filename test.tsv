@@ -1,0 +1,162 @@
+*Setting*	*Value*
+Suite Setup	Manual setup
+Suite Teardown	Manual teardown
+Resource	%{commPath_Ev}/Rammbock-HSS/test_env/resources/HSSRammbock.txt
+Resource	CommonData/manual_keywords.robot
+Library	String
+Library	Dialogs
+
+*Variables*	*Values*
+${local_ip}	10.144.184.50
+
+*Test Case*
+
+Set AS permissions
+	[Tags]	o
+	Run keyword and Ignore error	Send SPML	${tc_name}_NSR_AsPermissions_create.spml	${CURDIR}/Manual	${tc_vars}
+
+Clear AS permissions
+	[Tags]	o
+	Run keyword and Ignore error	Send SPML	${tc_name}_NSR_AsPermissions_delete.spml	${CURDIR}/Manual	${tc_vars}
+
+Set own AC usage
+	[Tags]	o
+	Comment	Run keyword and Ignore error	Set Configuration Details	ims/hss/tp/umstp	System.GetAVsfromOwnAUC	TRUE
+	Set Configuration Details	ims/hss/tp/umstp	System.GetAVsfromOwnAUC	TRUE
+
+Clear own AC usage
+	[Tags]	o
+	Run keyword and Ignore error	Set Configuration Details	ims/hss/tp/umstp	System.GetAVsfromOwnAUC	FALSE
+
+Turn on HLR_MultiSIM
+	[Tags]	o
+	Run keyword and Ignore error	Set Configuration Details	ims/hss/tp/umstp	System.EnableMultisimSupport	TRUE
+
+Turn off MultiSIM
+	[Tags]	o
+	Run keyword and Ignore error	Set Configuration Details	ims/hss/tp/umstp	System.EnableMultisimSupport	TRUE
+
+Set MultiSIM support for HSS
+	[Tags]	o
+	#!!!!!!	also, PGW has to be updated	by HSS_SUBSCRIBER's	MultiSimSupportForHSS	SuppressImsiMsisdnAliasForMultiSim	!!!!!!
+	Set Configuration Details	ims/hss/tp/umstp	System.EnableMultiSIMSupportforIMSSub	TRUE
+	Comment	Set Configuration Details	ims/hss/tp/umstp	System.InterpretCommonMSISDN	TRUE	# I found it TRUE by default
+
+Clear MultiSIM support for HSS
+	[Tags]	o
+	#!!!!!!	also, PGW has to be updated	by HSS_SUBSCRIBER's	MultiSimSupportForHSS	SuppressImsiMsisdnAliasForMultiSim	!!!!!!
+	Set Configuration Details	ims/hss/tp/umstp	System.EnableMultiSIMSupportforIMSSub	FALSE
+	Comment	Set Configuration Details	ims/hss/tp/umstp	System.InterpretCommonMSISDN	FALSE	# I found it TRUE by default
+
+Turn on wildcarded impus
+	[Tags]	o
+	Run keyword and Ignore error	Set Configuration Details	ims/hss/tp/umstp	System.EnableWildcardedId	TRUE
+	Run keyword and Ignore error	Set Configuration Details	ims/hss/tp/umstp	System.SearchSequenceCx	2
+
+Turn off wildcarded impus
+	[Tags]	o
+	Run keyword and Ignore error	Set Configuration Details	ims/hss/tp/umstp	System.EnableWildcardedId	FALSE
+	Run keyword and Ignore error	Set Configuration Details	ims/hss/tp/umstp	System.SearchSequenceCx	3
+
+
+# --------------------------------------------
+
+
+auxiliary
+	[Tags]	o
+	${name}=	Set variable	bu
+	${bu}=	Set variable	Broxi
+	Log to Console	\n${${name}}
+
+Create subs
+	[Tags]	o
+	Run keyword and Ignore error	Send SPML list from	${CURDIR}/Manual	${tc_vars}	NSR_EPSQOS_create.spml
+	Send SPML	manual_sub_create.spml	${CURDIR}/Manual	${tc_vars}
+
+Delete subs
+	[Tags]	x
+	Send SPML	manual_sub_delete.spml	${CURDIR}/Manual	${tc_vars}
+	Run keyword and Ignore error	Send SPML	NSR_EPSQOS_delete.spml	${CURDIR}/Manual	${tc_vars}
+	Comment	Run keyword and Ignore error	Set Configuration Details	ims/hss/tp/umstp	System.EnableMultisimSupport	FALSE
+
+Send some SPML
+	[Tags]	o
+	Send SPML	manual_sub_create.spml	${CURDIR}/Manual	${tc_vars}
+
+Send some ULR
+	[Tags]	o
+	${ulr_flags_s6a}=	Set variable	0x00000002
+	${vplmn_id_hplmn}=	Get VPLMN Id	${tc_vars.COMMDB_MCC}${tc_vars.COMMDB_MNC}
+	Send S6-ULR	${tc_vars.IMSI}	${tc_vars.MME}	${tc_vars.MME_REALM}	${tc_vars.REALM_HSS}	${ulr_flags_s6a}	${vplmn_id_hplmn}
+	Receive S6-ULA	2001
+
+Send some ULR for slave
+	[Tags]	o
+	${ulr_flags_s6a}=	Set variable	0x00000002
+	${vplmn_id_hplmn}=	Get VPLMN Id	${tc_vars.COMMDB_MCC}${tc_vars.COMMDB_MNC}
+	Send S6-ULR	${tc_vars.IMSI2}	${tc_vars.MME}	${tc_vars.MME_REALM}	${tc_vars.REALM_HSS}	${ulr_flags_s6a}	${vplmn_id_hplmn}
+	Receive S6-ULA	2001
+
+Send some NOR
+	[Tags]	o
+	Comment	PDNGW allocation type must be DYNAMIC in master's default PDN context
+	Comment		${avp_name}	${avp_value}	${vendor_id}	${vendor_specific}	${mandatory}
+	@{PDN_GW}=	Create List	MIP6-Agent-Info 	"[""MIP-Home-Agent-Host"", [[""Destination-Realm"", ""pdn.gw"", ""mandatory=1""], [""Destination-Host"", ""pdn.gw.epc.mnc021.mcc262.3gppnetwork.org"", ""mandatory=1""]], ""mandatory=1""]"	0	0	1
+	Send S6-NOR	${tc_vars.IMSI2}	${tc_vars.MME}	${tc_vars.MME_REALM}	${tc_vars.REALM_HSS}	-1	default
+	...	@{PDN_GW}
+	Receive S6-NOA	2001
+
+Send some UDR
+	[Tags]	o
+	Send Sh-UDR	${tc_vars.ApplicationServer}	${tc_vars.AS_REALM}	${tc_vars.REALM_HSS}	0	${tc_vars.IMPU}	23
+	Receive Sh-UDA	2001
+
+Send some UDR2
+	[Tags]	o
+	Send Sh-UDR	${tc_vars.ApplicationServer}	${tc_vars.AS_REALM}	${tc_vars.REALM_HSS}	0	${tc_vars.IMPU2}	23
+	Receive Sh-UDA	2001
+
+
+Send some SWx-MAR
+	[Tags]	o
+	Comment		${avp_name}	${avp_value}	${vendor_id}	${vendor_specific}	${mandatory}
+	@{ANID}=	Create List	ANID	1	10415	1	1
+	Send SWx-MAR	${tc_vars.ApplicationServer}	${tc_vars.AS_REALM}	${tc_vars.REALM_HSS}	${tc_vars.IMSI}	EAP-AKA	1
+	...	2001	default	@{ANID}
+	Receive SWx-MAA	2001
+	Send SWx-MAR	${tc_vars.ApplicationServer}	${tc_vars.AS_REALM}	${tc_vars.REALM_HSS}	${tc_vars.IMSI}	EAP-AKA
+	Receive SWx-MAA	2001
+
+Send SWx-MAR for slave
+	[Tags]	o
+	Send SWx-MAR	${tc_vars.ApplicationServer}	${tc_vars.AS_REALM}	${tc_vars.REALM_HSS}	${tc_vars.IMSI2}	EAP-AKA
+	Receive SWx-MAA	2001
+
+Send some CX
+	[Tags]	o
+	Send Cx-SAR	${tc_vars.SCSCF}	${tc_vars.AS_REALM}	${tc_vars.REALM_HSS}	impu=sip:49460123112@nokia.com
+	Receive Cx-SAA	2001
+
+*Keyword*
+Call Suite Level SPML Creation
+	&{nc_vars}=	Get Dict For Header	{0}/include/user_conf.h {0}/include/include.h
+	Initialize Global Variables	${nc_vars}
+	Generate Unique Origin Host Name
+	Comment	Update Configuration Details	ims/common/diameterdisp	Realms	RealmID=${nc_vars.COMMDB_MNC}${nc_vars.COMMDB_MCC}01	Realm=${test_dra_realm}	InterfaceID=DEFAULT	Server=${origin_host}
+	...	Priority=1	Weight=100
+
+Call Suite Level SPML Deletion
+	Comment	Delete Realm by ID	${nc_vars.COMMDB_MNC}${nc_vars.COMMDB_MCC}01
+
+Manual setup
+	Setup Test Environment	S6	CX	SH	SWX
+	&{nc_vars}=	Get Dict For Header	{0}/include/user_conf.h {0}/include/include.h
+	Initialize Global Variables	${nc_vars}
+	&{tc_vars}=	Get Dict for Headers	${CURDIR}/Manual/imsi_msisdn.h	${nc_vars}
+	Set Global Variable	${tc_vars}
+	Set Global Variable	${tc_name}	${tc_vars.TC_NAME}
+	Set Global Variable	${tc_id}	${tc_vars.TC_ID}
+
+Manual teardown
+	Common Teardown Activities	${CURDIR}/Manual
+	Reset Test Environment
