@@ -34,31 +34,36 @@ Usage:
 
     def _run_tcs(self):
         suite = readfile(self.suitefile)
-        tcs = get_tcs(suite)
+        tcs = self.tcs = get_tcs(suite)
         # read 'x' tags, combine somehow with prev_choice
-        self.tcs2run = self.prev_choice
+        prev_choice = self.get_prev_choice()
+        self.tcs2run = [tcs[i]  for i in prev_choice if i<len(tcs)]
         if self.select:
             self.tcs2run = multichoice( 
                 msg='Select testcases to run', 
-                title='RobotRun',
+                title='RobotRun ' + self.suitefile,
                 choices=tcs,
-                preselect=self.tcs2run )
-            # save selection to file
+                preselect=prev_choice )
+            self.save_selection()
         self._execute()
 
     def _run_previous(self):
         self.tcs2run = self.prev_choice
 
     def _execute(self):
-        failers = robot.run(self.suitefile, test=self.tcs2run) # stdout to capture
+        failers = robot.run(self.suitefile, test=self.tcs2run, loglevel="TRACE", consolecolors="ON")
     
-    @property
-    def prev_choice(self):
+    def get_prev_choice(self):
         return eval( readfile(self.selection_file, default='[]') )
 
     @property
     def selection_file(self):
         return self.suitefile + '.sel'
+
+    def save_selection(self):
+        tc_indices = [self.tcs.index(tc)  for tc in self.tcs2run]
+        with open(self.selection_file, 'w') as f:
+            f.write(repr(tc_indices))
 
 #
 def get_tcs(suite):
