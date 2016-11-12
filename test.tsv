@@ -1,8 +1,7 @@
 *Setting*	*Value*
-Suite Setup	Manual setup
-Suite Teardown	Manual teardown
+Suite Setup	My setup
+Suite Teardown	My teardown
 Resource	%{commPath_Ev}/Rammbock-HSS/test_env/resources/HSSRammbock.txt
-Resource	CommonData/manual_keywords.robot
 Library	String
 Library	Dialogs
 
@@ -23,7 +22,15 @@ Variable in variable
 	${bu}=	Set variable	Broxi
 	Log to Console	\n${${name}}
 
-*Keyword*
-Use this	[Args]	${x}=42
-	Log to Console	\nUsing this with $x$
+Failing
+	Unknown keyword	is called	here
 
+*Keyword*
+Use this	[Arguments]	${x}=42
+	Log to Console	\nUsing this with ${x}
+
+My setup
+	Log to Console	\nSetting up
+
+My teardown
+	Log to Console	\nTearing down

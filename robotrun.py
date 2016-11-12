@@ -50,9 +50,7 @@ Usage:
         self.tcs2run = self.prev_choice
 
     def _execute(self):
-    	print "Executing:"
-        for tc in self.tcs2run:
-            print "    "+tc
+        failers = robot.run(self.suitefile, test=self.tcs2run) # stdout to capture
     
     @property
     def prev_choice(self):
