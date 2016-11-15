@@ -1,7 +1,6 @@
 *Setting*	*Value*
 Suite Setup	My setup
 Suite Teardown	My teardown
-Resource	%{commPath_Ev}/Rammbock-HSS/test_env/resources/HSSRammbock.txt
 Library	String
 Library	Dialogs
 
