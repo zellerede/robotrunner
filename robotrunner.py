@@ -4,6 +4,7 @@ import wx
 import re
 import sys
 import robot
+from StringIO import StringIO
 
 
 def main():
@@ -23,7 +24,7 @@ Usage:
         self.proceed()
     
     def get_arguments(self):
-        args = sys.argv[1:]
+        args = sys.argv[1:] # ['test.tsv'] # 
         self.proceed = self.runner
         if (not args) or ('-h' in args) or ('--h' in args): 
             self.proceed = self.help
@@ -51,9 +52,13 @@ Usage:
 
 # --------------------------
 
+def calc_size():
+    maxX, maxY = wx.GetDisplaySize()
+    return (min(maxX*3//5, maxY), maxY*2//3)
+
 class RobotRun_GUI(wx.Frame):
     def __init__(self, app):
-        wx.Frame.__init__(self, parent=None, title='RobotRun') # + testsuite name
+        wx.Frame.__init__(self, parent=None, title='RobotRun', size=calc_size()) # + testsuite name
         self.app = app
         self.build()
         self.Centre()
@@ -61,20 +66,35 @@ class RobotRun_GUI(wx.Frame):
 
     def build(self):
         self.add_toolbar()
+        self.setup_panel()
         self.add_listbox()
+        self.add_resultbox()
 
     def add_toolbar(self):
-        tb = self.CreateToolBar()
+        tb = self.CreateToolBar(wx.TB_RIGHT)
         play = tb.AddLabelTool(wx.ID_RETRY, 'run', wx.Bitmap('play.png'))
         self.Bind(wx.EVT_TOOL, self.on_play, play)
         tb.AddSeparator()
         tb.Realize()
     
+    def setup_panel(self):
+        self.panel = wx.Panel(self)
+        self.place = wx.BoxSizer(wx.HORIZONTAL)
+        self.panel.SetSizer(self.place)
+
     def add_listbox(self):
-        self.lb = wx.ListBox(self, style=wx.LB_MULTIPLE, choices=self.app.tcs)
+        self.lb = wx.ListBox(self.panel, style=wx.LB_MULTIPLE, choices=self.app.tcs)
+        self.place.Add(self.lb, flag=wx.EXPAND|wx.ALIGN_LEFT)
+
+    def add_resultbox(self):
+        self.resultBox = wx.StaticText(self.panel, label='(results come here)')
+        self.place.Add(self.resultBox, flag=wx.SHAPED|wx.ALIGN_RIGHT)
 
     def on_play(self, e):
-        print self.lb.GetSelections()
+        tcs2run = [self.app.tcs[i] for i in self.lb.GetSelections()]
+        result = StringIO()
+        failers = robot.run(self.app.suitefile, test=tcs2run, loglevel="TRACE", stdout=result) #, consolecolors="ON")
+        self.resultBox.SetLabel( result.getvalue() )
 
 
 # ----------------------------
