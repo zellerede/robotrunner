@@ -2,6 +2,7 @@
 
 import wx
 import re
+import os
 import sys
 import robot
 from StringIO import StringIO
@@ -56,13 +57,36 @@ def calc_size():
     maxX, maxY = wx.GetDisplaySize()
     return (min(maxX*3//5, maxY), maxY*2//3)
 
+def icon_for(png):
+    curdir = os.path.dirname(__file__)
+    return wx.Bitmap( os.path.join(curdir, png) )
+
+def green_or_red(failed, total):
+    green = (0, 0xFF, 0) #(0x20, 0xEF, 0x20) # RGB
+    if not failed:
+        return wx.Colour(*green)
+    red = (0xFF, 0x40, 0x40)
+    not_that_green = (0xAD, 0xFF, 0x00)
+    passed = total - failed
+    result_color = [(failed*r + passed*g) // total 
+                       for g,r in zip(not_that_green, red)]
+    return wx.Colour(*result_color)
+
+# --------------------------
+
 class RobotRun_GUI(wx.Frame):
     def __init__(self, app):
         wx.Frame.__init__(self, parent=None, title='RobotRun', size=calc_size()) # + testsuite name
         self.app = app
+        self.load_icons()
         self.build()
         self.Centre()
         self.Show()
+    
+    def load_icons(self):
+        self.PLAY_ICON = icon_for('play.png')
+        # reload TC list
+        # Set background colour to original
 
     def build(self):
         self.add_toolbar()
@@ -71,8 +95,8 @@ class RobotRun_GUI(wx.Frame):
         self.add_resultbox()
 
     def add_toolbar(self):
-        tb = self.CreateToolBar(wx.TB_RIGHT)
-        play = tb.AddLabelTool(wx.ID_RETRY, 'run', wx.Bitmap('play.png'))
+        tb = self.CreateToolBar(wx.TB_RIGHT | wx.TB_DOCKABLE)
+        play = tb.AddLabelTool(wx.ID_RETRY, 'run', self.PLAY_ICON)
         self.Bind(wx.EVT_TOOL, self.on_play, play)
         tb.AddSeparator()
         tb.Realize()
@@ -92,10 +116,13 @@ class RobotRun_GUI(wx.Frame):
 
     def on_play(self, e):
         tcs2run = [self.app.tcs[i] for i in self.lb.GetSelections()]
+        if not tcs2run: return
         result = StringIO()
-        failers = robot.run(self.app.suitefile, test=tcs2run, loglevel="TRACE", stdout=result) #, consolecolors="ON")
+        failed = robot.run(self.app.suitefile, test=tcs2run, loglevel="TRACE", stdout=result) #, consolecolors="ON")
         self.resultBox.SetLabel( result.getvalue() )
-
+        # self.resultBox.SetBackgroundStyle( wx.BG_STYLE_COLOUR )
+        print failed, len(tcs2run)
+        self.panel.SetBackgroundColour( green_or_red(failed, len(tcs2run)) )
 
 # ----------------------------
 
