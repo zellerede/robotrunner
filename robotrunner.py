@@ -36,8 +36,8 @@ Usage:
         print self.__doc__
     
     def runner(self):
-        # if self.already_running()  # by an (empty) suitefile+'.rrun' existence
-        #     self.frame.setInFocus() ...
+        # if self.already_running():  # by an (empty) suitefile+'.rrun' existence
+        #    self.frame.setInFocus() ...
         #     self.refresh()
         #     return
         self.tcs = get_tcs(self.suitefile)
@@ -50,6 +50,15 @@ Usage:
         wx.App.__init__(self)
         self.frame = RobotRun_GUI(self)
         self.MainLoop()
+
+    def run(self, selection):
+        tcs2run = [self.tcs[i] for i in selection]
+        if not tcs2run: return
+        result = StringIO()
+        failed = robot.run(self.suitefile, test=tcs2run, loglevel="TRACE", stdout=result) #, consolecolors="ON")
+        return (failed, result.getvalue())
+
+
 
 # --------------------------
 
@@ -85,10 +94,12 @@ class RobotRun_GUI(wx.Frame):
     
     def load_icons(self):
         self.PLAY_ICON = icon_for('play.png')
-        # reload TC list
-        # Set background colour to original
+        # [refresh] reload TC list
+        # [antired] Set background colour to original
+        # Play all
 
     def build(self):
+        self.Bind(wx.EVT_ACTIVATE, self.on_reenter)
         self.add_toolbar()
         self.setup_panel()
         self.add_listbox()
@@ -98,6 +109,7 @@ class RobotRun_GUI(wx.Frame):
         tb = self.CreateToolBar(wx.TB_RIGHT | wx.TB_DOCKABLE)
         play = tb.AddLabelTool(wx.ID_RETRY, 'run', self.PLAY_ICON)
         self.Bind(wx.EVT_TOOL, self.on_play, play)
+        #tb.Bind(wx.EVT_KEY_UP, self.on_keypress)
         tb.AddSeparator()
         tb.Realize()
     
@@ -108,21 +120,30 @@ class RobotRun_GUI(wx.Frame):
 
     def add_listbox(self):
         self.lb = wx.ListBox(self.panel, style=wx.LB_MULTIPLE, choices=self.app.tcs)
+        self.lb.Bind(wx.EVT_KEY_UP, self.on_keypress)
         self.place.Add(self.lb, flag=wx.EXPAND|wx.ALIGN_LEFT)
-
+    
     def add_resultbox(self):
         self.resultBox = wx.StaticText(self.panel, label='(results come here)')
         self.place.Add(self.resultBox, flag=wx.SHAPED|wx.ALIGN_RIGHT)
-
-    def on_play(self, e):
-        tcs2run = [self.app.tcs[i] for i in self.lb.GetSelections()]
-        if not tcs2run: return
-        result = StringIO()
-        failed = robot.run(self.app.suitefile, test=tcs2run, loglevel="TRACE", stdout=result) #, consolecolors="ON")
-        self.resultBox.SetLabel( result.getvalue() )
-        # self.resultBox.SetBackgroundStyle( wx.BG_STYLE_COLOUR )
-        print failed, len(tcs2run)
-        self.panel.SetBackgroundColour( green_or_red(failed, len(tcs2run)) )
+    
+    #
+    def on_play(self, event):
+        selection = self.lb.GetSelections()
+        if selection:
+            failed, result = self.app.run( selection )
+            self.resultBox.SetLabel( result )
+            self.panel.SetBackgroundColour( green_or_red(failed, len(selection)) )
+    
+    def on_keypress(self, event):
+        keycode = event.GetKeyCode()
+        print keycode
+        if keycode == wx.WXK_RETURN:
+            self.on_play(event)
+        event.Skip()
+    
+    def on_reenter(self, event):
+        print "reentered :)"
 
 # ----------------------------
 
