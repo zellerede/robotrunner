@@ -16,7 +16,6 @@ Keyword usage
 	Use this	x=8
 
 Variable in variable
-	[Tags]	o
 	${name}=	Set variable	bu
 	${bu}=	Set variable	Broxi
 	Log to Console	\n${${name}}

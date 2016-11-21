@@ -7,6 +7,11 @@ import sys
 import robot
 from StringIO import StringIO
 
+try:
+    from wmctrl import Window
+except ImportError:
+    # wmctrl functionality is not a must just nice-to-have
+    from no_wmctrl import Window
 
 def main():
     RobotRun()
@@ -36,15 +41,15 @@ Usage:
         print self.__doc__
     
     def runner(self):
-        # if self.already_running():  # by an (empty) suitefile+'.rrun' existence
-        #    self.frame.setInFocus() ...
-        #     self.refresh()
-        #     return
+        if self.recalled(): return
         self.tcs = get_tcs(self.suitefile)
         if not self.tcs:
-            print "No test cases found to run."
+            print "No test cases identified in the suite."
             return
-        self.init_dialog()
+        try:
+            self.init_dialog()
+        finally:
+            os.unlink(self.rrun_file)
     
     def init_dialog(self):
         wx.App.__init__(self)
@@ -57,8 +62,25 @@ Usage:
         result = StringIO()
         failed = robot.run(self.suitefile, test=tcs2run, loglevel="TRACE", stdout=result) #, consolecolors="ON")
         return (failed, result.getvalue())
+    
+    #
+    @property
+    def rrun_file(self):
+        return self.suitefile + '.rrun'
 
-
+    def recalled(self):
+        if not os.path.isfile(self.rrun_file):
+            return
+        try: 
+            window_id_hex = readfile(self.rrun_file)
+            im_running = Window.by_id( int(window_id_hex,16) )
+        except Exception as e:
+            print e  ###
+            return
+        if im_running:
+            writefile(self.rrun_file, 'run baby')
+            im_running[0].activate()
+            return True
 
 # --------------------------
 
@@ -97,6 +119,8 @@ class RobotRun_GUI(wx.Frame):
         # [refresh] reload TC list
         # [antired] Set background colour to original
         # Play all
+        # Open logs
+        # Trace level, variables [+todo: Find out local_ip variable for me]
 
     def build(self):
         self.Bind(wx.EVT_ACTIVATE, self.on_reenter)
@@ -128,7 +152,7 @@ class RobotRun_GUI(wx.Frame):
         self.place.Add(self.resultBox, flag=wx.SHAPED|wx.ALIGN_RIGHT)
     
     #
-    def on_play(self, event):
+    def on_play(self, event=None):
         selection = self.lb.GetSelections()
         if selection:
             failed, result = self.app.run( selection )
@@ -143,7 +167,23 @@ class RobotRun_GUI(wx.Frame):
         event.Skip()
     
     def on_reenter(self, event):
-        print "reentered :)"
+        if event.GetActive():
+            rrun_file = self.app.rrun_file
+            try:
+                if not os.path.isfile(rrun_file):
+                     self.save_my_window_id(rrun_file)
+                     return
+                rrun = readfile(rrun_file)
+            except IOError as e:
+                print e
+                return
+            if rrun.startswith('run'):
+                self.save_my_window_id(rrun_file)
+                self.on_play()
+    
+    def save_my_window_id(self, rrun_file):
+        writefile(rrun_file, Window.get_active().id)
+
 
 # ----------------------------
 
@@ -161,6 +201,15 @@ def get_tcs(suitefile): # it would be more authentic to use robot's parser modul
 def readfile(fname):
     with open(fname) as f:
         return f.read()
+
+def writefile(fname, content):
+    try:
+        with open(fname, 'w') as f:
+            f.write(content)
+    except IOError as e:
+        print e
+
+# -------------------------------
 
 if __name__ == '__main__':
     main()
