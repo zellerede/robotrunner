@@ -23,7 +23,7 @@ class RobotRun(wx.App):
 Simple GUI for selecting and running robot testcases
 
 Usage:
-  python robotrun.py suite_file_name
+  python robotrunner.py suite_file_name
 """
     def __init__(self):
         self.get_arguments()
@@ -49,7 +49,10 @@ Usage:
         try:
             self.init_dialog()
         finally:
-            os.unlink(self.rrun_file)
+            try: os.unlink(self.rrun_file)
+            except IOError as e:
+                if "No such file" not in str(e):
+                    print e
     
     def init_dialog(self):
         wx.App.__init__(self)
@@ -71,6 +74,7 @@ Usage:
     def recalled(self):
         if not os.path.isfile(self.rrun_file):
             return
+        im_running = False
         try: 
             window_id_hex = readfile(self.rrun_file)
             im_running = Window.by_id( int(window_id_hex,16) )
@@ -132,6 +136,7 @@ class RobotRun_GUI(wx.Frame):
     def add_toolbar(self):
         tb = self.CreateToolBar(wx.TB_RIGHT | wx.TB_DOCKABLE)
         play = tb.AddLabelTool(wx.ID_RETRY, 'run', self.PLAY_ICON)
+        #play.SetToolTip( wx.ToolTip("([{RUN}])") )
         self.Bind(wx.EVT_TOOL, self.on_play, play)
         #tb.Bind(wx.EVT_KEY_UP, self.on_keypress)
         tb.AddSeparator()
@@ -139,6 +144,7 @@ class RobotRun_GUI(wx.Frame):
     
     def setup_panel(self):
         self.panel = wx.Panel(self)
+        self.original_bkg = self.panel.GetBackgroundColour()
         self.place = wx.BoxSizer(wx.HORIZONTAL)
         self.panel.SetSizer(self.place)
 
@@ -155,13 +161,14 @@ class RobotRun_GUI(wx.Frame):
     def on_play(self, event=None):
         selection = self.lb.GetSelections()
         if selection:
+            self.resultBox.SetLabel( '(executing...)' )
+            self.panel.SetBackgroundColour( self.original_bkg )
             failed, result = self.app.run( selection )
             self.resultBox.SetLabel( result )
             self.panel.SetBackgroundColour( green_or_red(failed, len(selection)) )
     
     def on_keypress(self, event):
         keycode = event.GetKeyCode()
-        print keycode
         if keycode == wx.WXK_RETURN:
             self.on_play(event)
         event.Skip()
@@ -171,8 +178,8 @@ class RobotRun_GUI(wx.Frame):
             rrun_file = self.app.rrun_file
             try:
                 if not os.path.isfile(rrun_file):
-                     self.save_my_window_id(rrun_file)
-                     return
+                    self.save_my_window_id(rrun_file)
+                    return
                 rrun = readfile(rrun_file)
             except IOError as e:
                 print e

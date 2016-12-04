@@ -1,91 +1,83 @@
 #!/usr/bin/python
 
-import re
+import os
 import sys
-import robot
-from easygui import multchoicebox as multichoice
+from subprocess import Popen
+
+try:
+    from wmctrl import Window
+except ImportError:
+    # wmctrl functionality is not a must just nice-to-have
+    from no_wmctrl import Window
+
+CURDIR = os.path.dirname(__file__)
+ROBOTRUNNER = 'robotrunner.py'
 
 def main():
-    RobotRun()
- 
-#
-class RobotRun(object):
+    RobotRun_Control()
+
+# ----------------------------
+
+class RobotRun_Control(object):
+    """
+Simple GUI for selecting and running robot testcases,
+I'm specifically its controller for IDE's
+
+Usage from inside an IDE:
+  python -u robotrun.py suite_file_name
+"""
     def __init__(self):
         self.get_arguments()
         self.proceed()
     
     def get_arguments(self):
-        args = sys.argv[1:]
-        self.proceed = self._run_tcs
-        self.select = True
-        if '-x' in args: 
-            args.remove('-x')
-            self.select = False
+        args = sys.argv[1:] # ['test.tsv'] # 
+        self.proceed = self.controller
         if (not args) or ('-h' in args) or ('--h' in args): 
-            self.proceed = self._help
+            self.proceed = self.help
             return
         self.suitefile = args.pop(0)
 
-    def _help(self):
-        print """\
-Usage:
-  python robotrun.py [-x] suite_file_name
-  -x: run with previous selection"""
-
-    def _run_tcs(self):
-        suite = readfile(self.suitefile)
-        tcs = self.tcs = get_tcs(suite)
-        # read 'x' tags, combine somehow with prev_choice
-        prev_choice = self.get_prev_choice()
-        self.tcs2run = [tcs[i]  for i in prev_choice if i<len(tcs)]
-        if self.select:
-            self.tcs2run = multichoice( 
-                msg='Select testcases to run', 
-                title='RobotRun ' + self.suitefile,
-                choices=tcs,
-                preselect=prev_choice )
-            self.save_selection()
-        self._execute()
-
-    def _run_previous(self):
-        self.tcs2run = self.prev_choice
-
-    def _execute(self):
-        failers = robot.run(self.suitefile, test=self.tcs2run, loglevel="TRACE", consolecolors="ON")
+    def help(self):
+        print self.__doc__
     
-    def get_prev_choice(self):
-        return eval( readfile(self.selection_file, default='[]') )
+    def controller(self):
+        if self.recalled(): return
+        runner_src = os.path.join(CURDIR, ROBOTRUNNER)
+        Popen(['python', '-u', runner_src, self.suitefile])
 
+    #
     @property
-    def selection_file(self):
-        return self.suitefile + '.sel'
+    def rrun_file(self):
+        return self.suitefile + '.rrun'
 
-    def save_selection(self):
-        tc_indices = [self.tcs.index(tc)  for tc in self.tcs2run]
-        with open(self.selection_file, 'w') as f:
-            f.write(repr(tc_indices))
+    def recalled(self):
+        if not os.path.isfile(self.rrun_file):
+            return
+        try: 
+            window_id_hex = readfile(self.rrun_file)
+            im_running = Window.by_id( int(window_id_hex,16) )
+        except Exception as e:
+            print e  ###
+            return
+        if im_running:
+            writefile(self.rrun_file, 'run baby')
+            im_running[0].activate()
+            return True
 
 #
-def get_tcs(suite):
-    match_tc_section = re.search(r'(?is)[\n|^]\*+ ?test ?cases? ?\*+(.*?)(\n\*|$)', suite)
-    if not match_tc_section: return
-    tc_section = match_tc_section.group(1)
+def readfile(fname):
+    with open(fname) as f:
+        return f.read()
 
-    tcs = [ match_tc.group(1)
-              for match_tc in re.finditer(r'(?m)^(\w.*?)(?: {3,}|\t|\n)', tc_section) ]
-    return tcs
+def writefile(fname, content):
+    try:
+        with open(fname, 'w') as f:
+            f.write(content)
+    except IOError as e:
+        print e
 
-    
-#
-def readfile(fname, default=None):
-   try:
-       with open(fname) as f:
-           return f.read()
-   except IOError as e:
-       if default is None: raise
-       return default
-
-# -----------------------------
+# -------------------------------
 
 if __name__ == '__main__':
     main()
