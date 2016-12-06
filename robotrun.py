@@ -14,6 +14,8 @@ CURDIR = os.path.dirname(__file__)
 ROBOTRUNNER = 'robotrunner.py'
 
 def main():
+    print sys.stdout ###
+    print sys.stdout.fileno() ###
     RobotRun_Control()
 
 # ----------------------------
