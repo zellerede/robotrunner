@@ -22,11 +22,13 @@ Variable in variable
 
 Failing
 	Unknown keyword	is called	here
+	Log to Console	Testcase repaired.
 
 Looong test
 	Log to Console	Now a looong operation is being performed...
 	Sleep	2s
 	Log to Console	Operation done.
+
 
 *Keyword*
 Use this	[Arguments]	${x}=42

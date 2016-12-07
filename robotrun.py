@@ -59,6 +59,7 @@ Usage from inside an IDE:
         try: 
             window_id_hex = readfile(self.rrun_file)
             im_running = Window.by_id( int(window_id_hex,16) )
+            # what if  window_id_hex == 'run baby' ?
         except Exception as e:
             print e  ###
             return

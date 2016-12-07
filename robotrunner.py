@@ -66,7 +66,11 @@ Usage:
         result = StringIO()
         failed = robot.run(self.suitefile, test=tcs2run, loglevel="TRACE", stdout=result) #, consolecolors="ON")
         return (failed, result.getvalue())
-    
+
+    def reload(self):
+        self.tcs = get_tcs(self.suitefile)
+        return self.tcs
+
     #
     @property
     def rrun_file(self):
@@ -82,8 +86,8 @@ def icon_for(png):
     return wx.Bitmap( os.path.join(CURDIR, png) )
 
 def black_or_white(color):
-    black = (0,0,0)
-    white = (0xFF,0XFF,0XFF)
+    black = (0, 0, 0)
+    white = (0xFF, 0xFF, 0xFF)
     brightness = color.red * 0.299 + color.green * 0.587 + color.blue * 0.114
     return wx.Colour(*black) if brightness>128 else wx.Colour(*white)
 
@@ -97,7 +101,8 @@ class RobotRun_GUI(wx.Frame):
     INITIAL_MSG = '(results come here)'
 
     def __init__(self, app):
-        wx.Frame.__init__(self, parent=None, title='RobotRun', size=calc_size()) # + testsuite name
+        title = 'RobotRun ' + re.sub(r'.*[/\\]|\..+', '', app.suitefile)
+        wx.Frame.__init__(self, parent=None, title=title, size=calc_size()) # + testsuite name
         self.app = app
         self.load_icons()
         self.build()
@@ -135,9 +140,10 @@ class RobotRun_GUI(wx.Frame):
         self.panel.SetSizer(self.place)
 
     def add_listbox(self):
-        self.lb = wx.ListBox(self.panel, style=wx.LB_MULTIPLE, choices=self.app.tcs)
-        self.lb.Bind(wx.EVT_KEY_UP, self.on_keypress)
-        self.place.Add(self.lb, flag=wx.EXPAND|wx.ALIGN_LEFT)
+        self.choose = wx.ListBox(self.panel, style=wx.LB_MULTIPLE, choices=self.app.tcs)
+        # self.choose.SetSelection(0)
+        self.choose.Bind(wx.EVT_KEY_UP, self.on_keypress)
+        self.place.Add(self.choose, flag=wx.EXPAND|wx.ALIGN_LEFT)
     
     def add_resultbox(self):
         self.resultBox = wx.StaticText(self.panel, label=self.INITIAL_MSG)
@@ -152,7 +158,7 @@ class RobotRun_GUI(wx.Frame):
 
     #    
     def on_play(self, event=None):
-        selection = self.lb.GetSelections()
+        selection = self.choose.GetSelections()
         if selection:
             self.set_resultbox('(executing...)', self.original_bkg)
             print "Running.." ###
@@ -171,6 +177,17 @@ class RobotRun_GUI(wx.Frame):
     def on_refresh(self, event=None):
         # reload
         self.set_resultbox(self.INITIAL_MSG, self.original_bkg)
+        old_tc_list = self.app.tcs
+        self.app.reload()
+        if old_tc_list == self.app.tcs: return
+
+        keep_selection = ()
+        if ( len(old_tc_list) == len(self.app.tcs) and
+             set(old_tc_list) != set(self.app.tcs) ):
+           keep_selection = self.choose.GetSelections()
+        self.choose.SetItems( self.app.tcs )
+        for i in keep_selection:
+            self.choose.SetSelection(i)
 
     def on_keypress(self, event):
         keycode = event.GetKeyCode()
@@ -191,6 +208,7 @@ class RobotRun_GUI(wx.Frame):
                 return
             if rrun.startswith('run'):
                 self.save_my_window_id(rrun_file)
+                self.on_refresh()
                 self.on_play()
     
     def save_my_window_id(self, rrun_file):
