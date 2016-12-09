@@ -2,7 +2,7 @@
 
 import os
 import sys
-from subprocess import Popen
+from subprocess import Popen, PIPE
 
 try:
     from wmctrl import Window
@@ -11,11 +11,9 @@ except ImportError:
     from no_wmctrl import Window
 
 CURDIR = os.path.dirname(__file__)
-ROBOTRUNNER = 'robotrunner.py'
+ROBOTRUNNER = os.path.join(CURDIR, 'robotrunner.py')
 
 def main():
-    print sys.stdout ###
-    print sys.stdout.fileno() ###
     RobotRun_Control()
 
 # ----------------------------
@@ -44,22 +42,38 @@ Usage from inside an IDE:
         print self.__doc__
     
     def controller(self):
-        if self.recalled(): return
-        runner_src = os.path.join(CURDIR, ROBOTRUNNER)
-        Popen(['python', '-u', runner_src, self.suitefile])
+        if self.recalled():
+            self.send_back_console()
+            return
+        Popen([sys.executable, ROBOTRUNNER, self.suitefile])
+
+    def send_back_console(self):
+        try:
+            #with open(self.ext_pipe) as out:
+            #    for line in iter(out.readline, b''): 
+            #        print line.rstrip()
+            print readfile(self.ext_pipe) # can we make it continuously streaming?
+        except IOError as e:
+            if 'No such file' not in str(e):
+                print e
 
     #
     @property
     def rrun_file(self):
         return self.suitefile + '.rrun'
 
+    @property
+    def ext_pipe(self):
+        return self.suitefile + '.pipe'
+
     def recalled(self):
         if not os.path.isfile(self.rrun_file):
             return
         try: 
             window_id_hex = readfile(self.rrun_file)
+            if window_id_hex.startswith('run'): 
+                return True  # but we can't switch to the running window
             im_running = Window.by_id( int(window_id_hex,16) )
-            # what if  window_id_hex == 'run baby' ?
         except Exception as e:
             print e  ###
             return

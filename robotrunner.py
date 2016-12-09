@@ -47,10 +47,22 @@ Usage:
         if not self.tcs:
             print "No test cases identified in the suite."
             return
+
         try:
-            self.init_dialog()
+            os.mkfifo(self.ext_pipe)
+        except (OSError, AttributeError) as e:
+            if "File exists" not in str(e):
+                print "mkfifo error"
+                print e
+
+        try:
+            ####################
+            self.init_dialog() #
+            ####################
         finally:
-            try: os.unlink(self.rrun_file)
+            try: 
+                os.unlink(self.rrun_file)
+                os.unlink(self.ext_pipe)
             except IOError as e:
                 if "No such file" not in str(e):
                     print e
@@ -75,6 +87,10 @@ Usage:
     @property
     def rrun_file(self):
         return self.suitefile + '.rrun'
+
+    @property
+    def ext_pipe(self):
+        return self.suitefile + '.pipe'
 
 # --------------------------
 
@@ -112,7 +128,6 @@ class RobotRun_GUI(wx.Frame):
     def load_icons(self):
         self.PLAY_ICON = icon_for('play.png')
         self.REFRESH_ICON = icon_for('refresh.png') # [refresh] reload TC list
-        # [antired] Set background colour to original
         # Play all
         # Open logs
         # Trace level, variables [+todo: Find out local_ip variable for me]
@@ -146,7 +161,7 @@ class RobotRun_GUI(wx.Frame):
         self.place.Add(self.choose, flag=wx.EXPAND|wx.ALIGN_LEFT)
     
     def add_resultbox(self):
-        self.resultBox = wx.StaticText(self.panel, label=self.INITIAL_MSG)
+        self.resultBox = wx.StaticText(self.panel, label=self.INITIAL_MSG, style=wx.VSCROLL|wx.HSCROLL)
         self.place.Add(self.resultBox, flag=wx.SHAPED|wx.ALIGN_RIGHT)
     
     #
@@ -161,7 +176,6 @@ class RobotRun_GUI(wx.Frame):
         selection = self.choose.GetSelections()
         if selection:
             self.set_resultbox('(executing...)', self.original_bkg)
-            print "Running.." ###
             failed, result = self.app.run( selection )
             self.set_resultbox( result, self.green_or_red(failed, len(selection)) )
 
@@ -196,20 +210,26 @@ class RobotRun_GUI(wx.Frame):
         event.Skip()
     
     def on_reenter(self, event):
-        if event.GetActive():
-            rrun_file = self.app.rrun_file
-            try:
-                if not os.path.isfile(rrun_file):
-                    self.save_my_window_id(rrun_file)
-                    return
-                rrun = readfile(rrun_file)
-            except IOError as e:
-                print e
-                return
-            if rrun.startswith('run'):
+        if not event.GetActive():
+            return
+
+        rrun_file = self.app.rrun_file
+        try:
+            if not os.path.isfile(rrun_file):
                 self.save_my_window_id(rrun_file)
-                self.on_refresh()
+                return
+            rrun = readfile(rrun_file)
+        except IOError as e:
+            print e
+            return
+        if rrun.startswith('run'):
+            self.save_my_window_id(rrun_file)
+            self.on_refresh()
+            stdout = sys.__stdout__
+            with open(self.app.ext_pipe, 'w') as output:
+                sys.__stdout__ = output
                 self.on_play()
+            sys.__stdout__ = stdout
     
     def save_my_window_id(self, rrun_file):
         writefile(rrun_file, Window.get_active().id)
