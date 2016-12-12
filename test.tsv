@@ -14,6 +14,7 @@ Simple test
 
 Keyword usage
 	Use this	x=8
+	Log to Console	Hey: ${local_ip}
 
 Variable in variable
 	${name}=	Set variable	bu

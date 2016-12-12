@@ -7,6 +7,9 @@ import sys
 import robot
 from StringIO import StringIO
 
+from socket import socket, AF_INET, SOCK_DGRAM  # for get_my_ip()
+import webbrowser
+
 try:
     from wmctrl import Window
 except ImportError:
@@ -76,7 +79,8 @@ Usage:
         tcs2run = [self.tcs[i] for i in selection]
         if not tcs2run: return
         result = StringIO()
-        failed = robot.run(self.suitefile, test=tcs2run, loglevel="TRACE", stdout=result) #, consolecolors="ON")
+        failed = robot.run(self.suitefile, test=tcs2run, loglevel="TRACE", 
+                           variable = ['local_ip:' + get_my_ip()], stdout=result)
         return (failed, result.getvalue())
 
     def reload(self):
@@ -107,6 +111,13 @@ def black_or_white(color):
     brightness = color.red * 0.299 + color.green * 0.587 + color.blue * 0.114
     return wx.Colour(*black) if brightness>128 else wx.Colour(*white)
 
+def get_my_ip():
+    s = socket(AF_INET, SOCK_DGRAM)
+    s.connect(("8.8.8.8", 80))
+    name = s.getsockname()[0]
+    s.close()
+    return name
+
 # --------------------------
 
 class RobotRun_GUI(wx.Frame):
@@ -120,20 +131,20 @@ class RobotRun_GUI(wx.Frame):
         title = 'RobotRun ' + re.sub(r'.*[/\\]|\..+', '', app.suitefile)
         wx.Frame.__init__(self, parent=None, title=title, size=calc_size()) # + testsuite name
         self.app = app
-        self.load_icons()
         self.build()
         self.Centre()
         self.Show()
     
     def load_icons(self):
         self.PLAY_ICON = icon_for('play.png')
-        self.REFRESH_ICON = icon_for('refresh.png') # [refresh] reload TC list
+        self.REFRESH_ICON = icon_for('refresh.png')
+        self.OPEN_LOGS_ICON = icon_for('see_logs.png')
         # Play all
-        # Open logs
         # Trace level, variables [+todo: Find out local_ip variable for me]
 
     def build(self):
         self.Bind(wx.EVT_ACTIVATE, self.on_reenter)
+        self.load_icons()
         self.add_toolbar()
         self.setup_panel()
         self.add_listbox()
@@ -141,10 +152,12 @@ class RobotRun_GUI(wx.Frame):
 
     def add_toolbar(self):
         tb = self.CreateToolBar(wx.TB_RIGHT | wx.TB_DOCKABLE)
-        play = tb.AddLabelTool(wx.ID_RETRY, 'run', self.PLAY_ICON, shortHelp = 'Run selected tests' )
+        play = tb.AddLabelTool(wx.ID_RETRY, 'run', self.PLAY_ICON, shortHelp='Run selected tests')
         self.Bind(wx.EVT_TOOL, self.on_play, play)
-        refresh = tb.AddLabelTool(wx.ID_REFRESH, 'refresh', self.REFRESH_ICON, shortHelp = 'Reload test suite')
+        refresh = tb.AddLabelTool(wx.ID_REFRESH, 'refresh', self.REFRESH_ICON, shortHelp='Reload test suite')
         self.Bind(wx.EVT_TOOL, self.on_refresh, refresh)
+        open_logs = tb.AddLabelTool(wx.ID_PREVIEW, 'preview', self.OPEN_LOGS_ICON, shortHelp='Open log.html')
+        self.Bind(wx.EVT_TOOL, self.on_open_logs, open_logs)
         tb.AddSeparator()
         tb.Realize()
     
@@ -234,6 +247,9 @@ class RobotRun_GUI(wx.Frame):
     def save_my_window_id(self, rrun_file):
         writefile(rrun_file, Window.get_active().id)
 
+    def on_open_logs(self, event):
+        log_html = os.path.join(os.path.dirname(self.app.suitefile), 'log.html')
+        webbrowser.open_new( log_html )
 
 # ----------------------------
 
