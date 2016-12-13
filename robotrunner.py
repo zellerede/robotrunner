@@ -7,7 +7,7 @@ import sys
 import robot
 from StringIO import StringIO
 
-from socket import socket, AF_INET, SOCK_DGRAM  # for get_my_ip()
+from socket import socket, AF_INET, SOCK_DGRAM, error as SocketError # for get_my_ip()
 import webbrowser
 
 try:
@@ -112,10 +112,17 @@ def black_or_white(color):
     return wx.Colour(*black) if brightness>128 else wx.Colour(*white)
 
 def get_my_ip():
-    s = socket(AF_INET, SOCK_DGRAM)
-    s.connect(("8.8.8.8", 80))
-    name = s.getsockname()[0]
-    s.close()
+    try:
+        s = socket(AF_INET, SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        name = s.getsockname()[0]
+        s.close()
+    except SocketError as e:
+        name = ''
+        if e.errno == 101: # Network is unreachable
+            print "[WARN]    No internet connection, hence no ip address found."
+        else:
+            print e
     return name
 
 # --------------------------
@@ -140,7 +147,7 @@ class RobotRun_GUI(wx.Frame):
         self.REFRESH_ICON = icon_for('refresh.png')
         self.OPEN_LOGS_ICON = icon_for('see_logs.png')
         # Play all
-        # Trace level, variables [+todo: Find out local_ip variable for me]
+        # Trace level, variables
 
     def build(self):
         self.Bind(wx.EVT_ACTIVATE, self.on_reenter)
