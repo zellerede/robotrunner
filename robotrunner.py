@@ -53,10 +53,12 @@ Usage:
 
         try:
             os.mkfifo(self.ext_pipe)
-        except (OSError, AttributeError) as e:
+        except OSError as e:
             if "File exists" not in str(e):
                 print "mkfifo error"
                 print e
+        except AttributeError as e:
+            "No immediate console piping is supported." # win
 
         try:
             ####################
@@ -66,8 +68,8 @@ Usage:
             try: 
                 os.unlink(self.rrun_file)
                 os.unlink(self.ext_pipe)
-            except IOError as e:
-                if "No such file" not in str(e):
+            except OSError as e:
+                if e.errno != 2:
                     print e
     
     def init_dialog(self):

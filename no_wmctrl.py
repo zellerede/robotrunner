@@ -10,7 +10,7 @@ class Window(object):
     
     @classmethod
     def by_id(cls, id):
-        return a_window
+        return (a_window,)
     
     def activate(self):
         pass
