@@ -172,10 +172,17 @@ class RobotRun_GUI(wx.Frame):
     
     def setup_panel(self):
         self.panel = wx.Panel(self)
-        self.original_bkg = self.panel.GetBackgroundColour()
         self.place = wx.BoxSizer(wx.HORIZONTAL)
         self.panel.SetSizer(self.place)
+        #
+        self.original_bkg = self.panel.GetBackgroundColour()
+        self.set_font()
 
+    def set_font(self):
+        self.font = self.panel.GetFont()
+        self.font.SetPointSize( 12 )
+        self.panel.SetFont( self.font )
+    
     def add_listbox(self):
         self.choose = wx.ListBox(self.panel, style=wx.LB_MULTIPLE, choices=self.app.tcs)
         # self.choose.SetSelection(0)
@@ -183,14 +190,15 @@ class RobotRun_GUI(wx.Frame):
         self.place.Add(self.choose, flag=wx.EXPAND|wx.ALIGN_LEFT)
     
     def add_resultbox(self):
-        self.resultBox = wx.StaticText(self.panel, label=self.INITIAL_MSG, style=wx.VSCROLL|wx.HSCROLL)
-        self.place.Add(self.resultBox, flag=wx.SHAPED|wx.ALIGN_RIGHT)
+        self.resultBox = wx.StaticText(self.panel, label=self.INITIAL_MSG) #, style=wx.VSCROLL|wx.HSCROLL)
+        self.place.Add(self.resultBox, flag=wx.SHAPED|wx.EXPAND|wx.ALIGN_RIGHT)
     
     #
     def set_resultbox(self, text, color):
-        self.resultBox.SetLabel( text )
         self.panel.SetBackgroundColour( color )
         self.resultBox.SetForegroundColour( black_or_white(color) )
+        self.resultBox.SetLabel( text )
+        self.panel.Refresh()
         self.panel.Update()
 
     #    
