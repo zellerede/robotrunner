@@ -81,7 +81,7 @@ Usage:
         tcs2run = [self.tcs[i] for i in selection]
         if not tcs2run: return
         result = StringIO()
-        failed = robot.run(self.suitefile, test=tcs2run, loglevel="TRACE", 
+        failed = robot.run(self.suitefile, test=tcs2run, log= self.log_html, loglevel="TRACE", 
                            variable = ['local_ip:' + get_my_ip()], stdout=result)
         return (failed, result.getvalue())
 
@@ -97,6 +97,10 @@ Usage:
     @property
     def ext_pipe(self):
         return self.suitefile + '.pipe'
+    
+    @property
+    def log_html(self):
+        return os.path.join(os.path.dirname(self.suitefile), 'log.html')
 
 # --------------------------
 
@@ -265,8 +269,7 @@ class RobotRun_GUI(wx.Frame):
         writefile(rrun_file, Window.get_active().id)
 
     def on_open_logs(self, event):
-        log_html = os.path.join(os.path.dirname(self.app.suitefile), 'log.html')
-        webbrowser.open_new( log_html )
+        wx.LaunchDefaultBrowser("file://"+self.app.log_html)
 
 # ----------------------------
 
