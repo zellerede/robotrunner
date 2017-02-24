@@ -35,7 +35,7 @@ Usage:
         self.proceed()
     
     def get_arguments(self):
-        args = sys.argv[1:] # ['test.tsv'] # 
+        args = sys.argv[1:] # ['test.tsv'] #
         self.proceed = self.runner
         if (not args) or ('-h' in args) or ('--h' in args): 
             self.proceed = self.help
@@ -61,9 +61,9 @@ Usage:
             "No immediate console piping is supported." # win
 
         try:
-            ####################
-            self.init_dialog() #
-            ####################
+            #################
+            self.init_gui() #
+            #################
         finally:
             try: 
                 os.unlink(self.rrun_file)
@@ -72,17 +72,22 @@ Usage:
                 if e.errno != 2:
                     print e
     
-    def init_dialog(self):
+    def init_gui(self):
         wx.App.__init__(self)
-        self.frame = RobotRun_GUI(self)
+        self.gui = RobotRun_GUI(self)
         self.MainLoop()
 
     def run(self, selection):
         tcs2run = [self.tcs[i] for i in selection]
         if not tcs2run: return
         result = StringIO()
-        failed = robot.run(self.suitefile, test=tcs2run, log= self.log_html, loglevel="TRACE", 
-                           variable = ['local_ip:' + get_my_ip()], stdout=result)
+        failed = robot.run(self.suitefile, 
+                           test=tcs2run, 
+                           log=self.log_html, 
+                           loglevel="TRACE", 
+                           variable = ['local_ip:' + get_my_ip()], 
+                           stdout=result,
+                           listener=Follow(self.gui))
         return (failed, result.getvalue())
 
     def reload(self):
@@ -198,12 +203,16 @@ class RobotRun_GUI(wx.Frame):
         self.place.Add(self.resultBox, flag=wx.SHAPED|wx.EXPAND|wx.ALIGN_RIGHT)
     
     #
-    def set_resultbox(self, text, color):
-        self.panel.SetBackgroundColour( color )
-        self.resultBox.SetForegroundColour( black_or_white(color) )
-        self.resultBox.SetLabel( text )
-        self.panel.Refresh()
+    def set_resultbox(self, text, color=None, append=False):
+        if color is not None:
+            self.panel.SetBackgroundColour( color )
+            self.resultBox.SetForegroundColour( black_or_white(color) )
+        prev = self.resultBox.GetLabel()  if append else  ''
+        self.resultBox.SetLabel( prev + text )
+        self.resultBox.Update()
         self.panel.Update()
+        self.resultBox.Refresh()
+        self.panel.Refresh()
 
     #    
     def on_play(self, event=None):
@@ -211,16 +220,8 @@ class RobotRun_GUI(wx.Frame):
         if selection:
             self.set_resultbox('(executing...)', self.original_bkg)
             failed, result = self.app.run( selection )
-            self.set_resultbox( result, self.green_or_red(failed, len(selection)) )
-
-    def green_or_red(self, failed, total):
-        if not failed:
-            return wx.Colour(*self.green)
-        passed = total - failed
-        result_color = [(failed*r + passed*g) // total 
-                           for g,r in zip(self.almost_green, self.red)]
-        return wx.Colour(*result_color)
-    
+            self.set_resultbox( '-----\nDone\n\n', append=True )
+   
     #
     def on_refresh(self, event=None):
         # reload
@@ -270,6 +271,41 @@ class RobotRun_GUI(wx.Frame):
 
     def on_open_logs(self, event):
         wx.LaunchDefaultBrowser("file://"+self.app.log_html)
+
+class Follow(object):
+    ROBOT_LISTENER_API_VERSION = 3
+    
+    def __init__(self, gui):
+        self.gui = gui
+        self.passed = 0
+        self.total = 0
+
+    def start_test(self, data, result):
+        self.gui.set_resultbox(
+             text= "{}: ".format(result.name),
+             append= (self.total>0) )
+
+    def end_test(self, data, result):
+        self.total += 1
+        if result.passed:
+            self.passed += 1
+            msg = result.message or 'PASS'
+        else:
+            msg = '[@!%&^]\n '+ result.message
+        self.gui.set_resultbox(
+             text= " {}\n".format(msg),
+             color= self.green_or_red(),
+             append= True )
+    
+    def green_or_red(self):
+        if (self.passed == self.total):
+            return wx.Colour(*self.gui.green)
+        total, passed = self.total, self.passed
+        failed = total - passed
+        result_color = [(failed*r + passed*g) // total 
+                           for g,r in zip(self.gui.almost_green, self.gui.red)]
+        return wx.Colour(*result_color)
+
 
 # ----------------------------
 

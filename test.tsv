@@ -11,17 +11,21 @@ ${b}	20
 *Test Case*
 Simple test
 	Log to Console	\na=${a}
+	Sleep	1s
 
 Keyword usage
 	Use this	x=8
 	Log to Console	Hey: ${local_ip}
+	Sleep	1s
 
 Variable in variable
 	${name}=	Set variable	bu
 	${bu}=	Set variable	Broxi
 	Log to Console	\n${${name}}
+	Sleep	1s
 
 Failing
+	Sleep	1s
 	Unknown keyword	is called	here
 	Log to Console	Testcase repaired.
 
