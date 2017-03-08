@@ -144,6 +144,7 @@ class RobotRun_GUI(wx.Frame):
     almost_green = (0xAD, 0xFF, 0x00)
 
     INITIAL_MSG = '(results come here)'
+    EXEC_KW = 'Executing keyword: '
 
     def __init__(self, app):
         title = 'RobotRun ' + re.sub(r'.*[/\\]|\..+', '', app.suitefile)
@@ -167,6 +168,7 @@ class RobotRun_GUI(wx.Frame):
         self.setup_panel()
         self.add_listbox()
         self.add_resultbox()
+        self.add_footer()
 
     def add_toolbar(self):
         tb = self.CreateToolBar(wx.TB_RIGHT | wx.TB_DOCKABLE)
@@ -181,8 +183,10 @@ class RobotRun_GUI(wx.Frame):
     
     def setup_panel(self):
         self.panel = wx.Panel(self)
-        self.place = wx.BoxSizer(wx.HORIZONTAL)
-        self.panel.SetSizer(self.place)
+        self.to_below = wx.BoxSizer(wx.VERTICAL)
+        self.to_right = wx.BoxSizer(wx.HORIZONTAL)
+        self.to_below.Add(self.to_right, 1)
+        self.panel.SetSizer(self.to_below)
         #
         self.original_bkg = self.panel.GetBackgroundColour()
         self.set_font()
@@ -196,12 +200,11 @@ class RobotRun_GUI(wx.Frame):
         self.choose = wx.ListBox(self.panel, style=wx.LB_MULTIPLE, choices=self.app.tcs)
         # self.choose.SetSelection(0)
         self.choose.Bind(wx.EVT_KEY_UP, self.on_keypress)
-        self.place.Add(self.choose, flag=wx.EXPAND|wx.ALIGN_LEFT)
+        self.to_right.Add(self.choose, flag=wx.EXPAND|wx.ALIGN_LEFT)
     
     def add_resultbox(self):
-        self.resultBox = wx.StaticText(self.panel, label=self.INITIAL_MSG) #, style=wx.VSCROLL|wx.HSCROLL)
-        self.place.Add(self.resultBox, flag=wx.SHAPED|wx.EXPAND|wx.ALIGN_RIGHT)
-    
+        self.resultBox = wx.StaticText(self.panel, label=self.INITIAL_MSG, style=wx.VSCROLL|wx.HSCROLL)
+        self.to_right.Add(self.resultBox, flag=wx.SHAPED|wx.EXPAND|wx.ALIGN_RIGHT)
     #
     def set_resultbox(self, text, color=None, append=False):
         if color is not None:
@@ -214,12 +217,24 @@ class RobotRun_GUI(wx.Frame):
         self.resultBox.Refresh()
         self.panel.Refresh()
 
+    def add_footer(self):
+        self.footer = wx.StaticText(self.panel, label=self.EXEC_KW + ' '*500)
+        self.to_below.Add(self.footer, flag=wx.BOTTOM|wx.ALIGN_BOTTOM)
+
+    def set_footer(self, text):
+        self.footer.SetLabel( self.EXEC_KW + text )
+        self.footer.Update()
+
     #    
     def on_play(self, event=None):
         selection = self.choose.GetSelections()
         if selection:
+            #self.footer.Show()
+            self.footer.Enable()
             self.set_resultbox('(executing...)', self.original_bkg)
             failed, result = self.app.run( selection )
+            #self.footer.Hide()
+            self.footer.Disable()
             self.set_resultbox( '-----\nDone\n\n', append=True )
    
     #
@@ -273,25 +288,38 @@ class RobotRun_GUI(wx.Frame):
         wx.LaunchDefaultBrowser("file://"+self.app.log_html)
 
 class Follow(object):
-    ROBOT_LISTENER_API_VERSION = 3
+    ROBOT_LISTENER_API_VERSION = 2
     
     def __init__(self, gui):
         self.gui = gui
         self.passed = 0
         self.total = 0
+        self.kw_chain = []
 
-    def start_test(self, data, result):
+    def start_test(self, name, attr):
         self.gui.set_resultbox(
-             text= "{}: ".format(result.name),
+             text= "{}: ".format(name),
              append= (self.total>0) )
 
-    def end_test(self, data, result):
+    def start_keyword(self, name, attr):
+        name = re.sub(r'.*\.', '', name)
+        self.kw_chain.append(name)
+        self.gui.set_footer(' > '.join(self.kw_chain))
+
+    def end_keyword(self, name, attr):
+        if name not in self.kw_chain:
+            #not supposed to be the case
+            return
+        while name!=self.kw_chain.pop(): 
+            pass
+
+    def end_test(self, name, attr):
         self.total += 1
-        if result.passed:
+        msg = attr.get('message') or attr.get('status')
+        if attr['status']=='PASS':
             self.passed += 1
-            msg = result.message or 'PASS'
         else:
-            msg = '[@!%&^]\n '+ result.message
+            msg = '[@!%&^]\n '+ msg
         self.gui.set_resultbox(
              text= " {}\n".format(msg),
              color= self.green_or_red(),

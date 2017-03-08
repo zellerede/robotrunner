@@ -16,7 +16,6 @@ Simple test
 Keyword usage
 	Use this	x=8
 	Log to Console	Hey: ${local_ip}
-	Sleep	1s
 
 Variable in variable
 	${name}=	Set variable	bu
@@ -36,11 +35,19 @@ Looong test
 
 
 *Keyword*
-Use this	[Arguments]	${x}=42
+Use this
+	[Arguments]	${x}=42
 	Log to Console	\nUsing this with ${x}
+	Test kwChain	${5}
 
 My setup
 	Log to Console	\nSetting up
 
 My teardown
 	Log to Console	\nTearing down
+
+Test kwChain
+	[Arguments]	${n}=${0}
+	Run keyword if	${n}>${0}
+	...	Test kwChain	${n-1}
+	Sleep	1s
