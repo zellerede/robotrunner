@@ -218,11 +218,11 @@ class RobotRun_GUI(wx.Frame):
         self.panel.Refresh()
 
     def add_footer(self):
-        self.footer = wx.StaticText(self.panel, label=self.EXEC_KW + ' '*500)
+        self.footer = wx.StaticText(self.panel, label=self.EXEC_KW + ' '*400)
         self.to_below.Add(self.footer, flag=wx.BOTTOM|wx.ALIGN_BOTTOM)
 
     def set_footer(self, text):
-        self.footer.SetLabel( self.EXEC_KW + text )
+        self.footer.SetLabel( (self.EXEC_KW + text + ' '*400) [:400] )
         self.footer.Update()
 
     #    
@@ -294,7 +294,7 @@ class Follow(object):
         self.gui = gui
         self.passed = 0
         self.total = 0
-        self.kw_chain = []
+        self.step = '(pre)'
 
     def start_test(self, name, attr):
         self.gui.set_resultbox(
@@ -303,16 +303,11 @@ class Follow(object):
 
     def start_keyword(self, name, attr):
         name = re.sub(r'.*\.', '', name)
-        self.kw_chain.append(name)
-        self.gui.set_footer(' > '.join(self.kw_chain))
-
-    def end_keyword(self, name, attr):
-        if name not in self.kw_chain:
-            #not supposed to be the case
-            return
-        while name!=self.kw_chain.pop(): 
-            pass
-
+        if re.search(r'(?i)step|set ?up|tear ?down', name):
+            self.step = name
+        else:
+            self.gui.set_footer('{} > {}'.format(self.step, name))
+    
     def end_test(self, name, attr):
         self.total += 1
         msg = attr.get('message') or attr.get('status')
