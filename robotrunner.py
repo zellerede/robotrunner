@@ -338,7 +338,7 @@ def get_tcs(suitefile): # it would be more authentic to use robot's parser modul
     if not match_tc_section: return
     tc_section = match_tc_section.group(1)
 
-    tcs = [ match_tc.group(1)
+    tcs = [ match_tc.group(1).strip()
               for match_tc in re.finditer(r'(?m)^(\w.*?)(?: {3,}|\t|\n)', tc_section) ]
     return tcs
 
